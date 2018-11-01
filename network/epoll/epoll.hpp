@@ -1,3 +1,4 @@
+#pragma once
 #include "event.hpp"
 
 #include <sys/epoll.h>
@@ -93,7 +94,7 @@ public:
     void add_event(fd_handle &handle, file_event_handler_type handler)
     {
         int fd = handle.fd_;
-        ev.events = EPOLLIN | EPOLLET;
+        ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
         ev.data.fd = fd;
         if (epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
             perror("epoll_ctl: listen_sock");
@@ -148,7 +149,7 @@ protected:
     {
         bool operator()(const fd_handle &h1, const fd_handle &h2)
         {
-            return h1.fd_ - h2.fd_;
+            return h1.fd_ < h2.fd_;
         }
     };
 
@@ -161,17 +162,21 @@ class async_file_event
 {
 protected:
     epoll_event_pool &pool_;
-    fd_handle &handle_;
+    fd_handle handle_;
     int event_;
     int waited_;
     int waited_mask_;
     coroutine_t *co_read, *co_write, *co_wait;
 public:
-    async_file_event(epoll_event_pool &pool, fd_handle &h) : pool_(pool), handle_(h), event_(0), waited_(0), waited_mask_(0),
+    async_file_event(epoll_event_pool &pool, fd_handle h) : pool_(pool), handle_(h), event_(0), waited_(0), waited_mask_(0),
         co_read(NULL), co_write(NULL), co_wait(NULL)
     {
         pool.add_event(handle_, std::bind(&async_file_event::trigger, this, std::placeholders::_1, std::placeholders::_2));
         handle_.set_non_block();
+    }
+    async_file_event(async_file_event &&event) : pool_(event.pool_), handle_(event.handle_)
+    {
+
     }
     int async_wait(int event)
     {

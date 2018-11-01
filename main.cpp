@@ -1,4 +1,5 @@
 #include "epoll.hpp"
+#include "socket.hpp"
 
 #include <linux/if.h>
 #include <linux/if_tun.h>
@@ -21,6 +22,31 @@ void test_co(void *p)
             abort();
         }
         printf("%d\n", ret);
+    }
+}
+
+void dns(void *p)
+{
+    udp_socket *sock = (udp_socket *)p;
+    address addr("180.76.76.76", 53);
+    addr.resolve();
+    char query[] = "\x12\x34\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x05\x62\x61\x69\x64\x75\x03\x63\x6f\x6d\x00\x00\x01\x00\x01";
+
+    byte_buffer buffer(sizeof(query) - 1);
+    buffer.fill(query, sizeof(query) - 1);
+
+    address addr2;
+    byte_buffer buffer2(1500);
+    while (1)
+    {
+        int ret = sock->async_send_to(addr, buffer);
+        if (ret < 0)
+        {
+            perror("async_send_to");
+        }
+        ret = sock->async_read_from(addr2, buffer2);
+        std::cout<<"DNS query received "<<ret<<" bytes"<<std::endl;
+        //std::cout<<(char *)(void *)buffer2<<std::endl;
     }
 }
 
@@ -55,6 +81,10 @@ int main(int argc, char *args[])
 //                   }));
     async_file_event event(pool, handle);
     coroutine_t *co = co_create(4096, (void *)test_co, &event);
+    co_post(co);
+
+    udp_socket sock(pool);
+    co = co_create(16384, (void *)dns, &sock);
     co_post(co);
 //    pool.add_event();
 
