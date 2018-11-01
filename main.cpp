@@ -1,5 +1,6 @@
 #include "epoll.hpp"
 #include "socket.hpp"
+#include "timer.hpp"
 
 #include <linux/if.h>
 #include <linux/if_tun.h>
@@ -28,6 +29,9 @@ void test_co(void *p)
 void dns(void *p)
 {
     udp_socket *sock = (udp_socket *)p;
+    async_timer_event timer(sock->pool());
+
+
     address addr("180.76.76.76", 53);
     addr.resolve();
     char query[] = "\x12\x34\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x05\x62\x61\x69\x64\x75\x03\x63\x6f\x6d\x00\x00\x01\x00\x01";
@@ -46,6 +50,8 @@ void dns(void *p)
         }
         ret = sock->async_read_from(addr2, buffer2);
         std::cout<<"DNS query received "<<ret<<" bytes"<<std::endl;
+        timer.expire_from_now(posix_time::seconds(1));
+        timer.async_wait();
         //std::cout<<(char *)(void *)buffer2<<std::endl;
     }
 }

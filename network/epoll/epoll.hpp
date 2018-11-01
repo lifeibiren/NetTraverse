@@ -76,7 +76,6 @@ protected:
     file_event_handler_type handler_function_;
 };
 
-
 class epoll_event_pool
 {
 public:
@@ -178,6 +177,12 @@ public:
     {
 
     }
+
+    epoll_event_pool &pool()
+    {
+        return pool_;
+    }
+
     int async_wait(int event)
     {
         if (event_ & event)
