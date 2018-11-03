@@ -68,7 +68,10 @@ public:
     {}
     byte_buffer(std::size_t size) : ptr_(new std::uint8_t[size]), size_(size)
     {}
-    byte_buffer(void *ptr_, std::size_t len);
+    byte_buffer(void *ptr, std::size_t len) : byte_buffer(len)
+    {
+        memcpy(ptr_, ptr, len);
+    }
     virtual ~byte_buffer() {}
 
     operator void *()
@@ -96,11 +99,18 @@ public:
     }
     std::size_t resize(std::size_t size)
     {
-        std::uint8_t *new_ptr = new std::uint8_t[size_ * 2];
-        bcopy(ptr_, new_ptr, size > size_ ? size_ : size);
-        delete []ptr_;
-        ptr_ = new_ptr;
-        size_ = size;
+        if (size > size_)
+        {
+            std::uint8_t *new_ptr = new std::uint8_t[size_ * 2];
+            bcopy(ptr_, new_ptr, size > size_ ? size_ : size);
+            delete []ptr_;
+            ptr_ = new_ptr;
+            size_ = size;
+        }
+        else
+        {
+            size_ = size;
+        }
         return size_;
     }
     std::size_t fill(void *buf, std::size_t size, std::size_t offset = 0)
@@ -198,6 +208,6 @@ public:
     }
     int connect(const address &addr)
     {
-
+        return false;
     }
 };

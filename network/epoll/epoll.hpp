@@ -102,9 +102,13 @@ public:
         handle_map.emplace(std::make_pair(handle, handler));
     }
 
-    void del_event(event &handle)
+    void del_event(fd_handle &handle)
     {
-        handle_map.empty();
+        auto it = handle_map.find(handle);
+        if (it != handle_map.end())
+        {
+            handle_map.erase(it);
+        }
     }
 
     void clear_event()
@@ -121,7 +125,6 @@ public:
             nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
             if (nfds == -1) {
                 perror("epoll_wait");
-//                exit(EXIT_FAILURE);
             }
             for (int n = 0; n < nfds; ++n) {
                 fd_handle handle(events[n].data.fd);
@@ -198,32 +201,20 @@ public:
     int async_read_some(void *buf, size_t count)
     {
         ssize_t ret;
-        size_t offset = 0;
         do {
-            ret = read(handle_.fd_, (std::uint8_t *)buf + offset, count - offset);
+            ret = read(handle_.fd_, (std::uint8_t *)buf, count);
             if (ret > 0)
             {
-                offset += ret;
-            }
-            if (offset == count)
-            {
-                return offset;
+                break;
             }
             if (ret == -1)
             {
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    if (offset > 0)
-                    {
-                        return offset;
-                    }
-                    else
-                    {
-                        waited_ |= CAN_READ;
-                        co_yield(&co_read);
-                        co_read = NULL;
-                        waited_ &= ~CAN_READ;
-                    }
+                    waited_ |= CAN_READ;
+                    co_yield(&co_read);
+                    co_read = NULL;
+                    waited_ &= ~CAN_READ;
                 }
                 else
                 {
@@ -233,35 +224,23 @@ public:
         } while(1);
         return ret;
     }
-    int async_write_some(void *buf, size_t count)
+    int async_write_some(const void *buf, size_t count)
     {
         ssize_t ret;
-        size_t offset = 0;
         do {
-            ret = write(handle_.fd_, (std::uint8_t *)buf + offset, count - offset);
+            ret = write(handle_.fd_, (std::uint8_t *)buf, count);
             if (ret > 0)
             {
-                offset += ret;
-            }
-            if (offset == count)
-            {
-                return offset;
+                break;
             }
             if (ret == -1)
             {
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    if (offset > 0)
-                    {
-                        return offset;
-                    }
-                    else
-                    {
-                        waited_ |= CAN_WRITE;
-                        co_yield(&co_write);
-                        co_write = NULL;
-                        waited_ &= ~CAN_WRITE;
-                    }
+                    waited_ |= CAN_WRITE;
+                    co_yield(&co_write);
+                    co_write = NULL;
+                    waited_ &= ~CAN_WRITE;
                 }
                 else
                 {
@@ -302,7 +281,7 @@ public:
         } while(1);
         return ret;
     }
-    int async_write(void *buf, size_t count)
+    int async_write(const void *buf, size_t count)
     {
         ssize_t ret;
         size_t offset = 0;

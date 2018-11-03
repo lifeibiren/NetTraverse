@@ -8,9 +8,7 @@ set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
 add_subdirectory(coroutine)
 add_subdirectory(network)
 
-
-message(STATUS $<target_property:network,include_directories>)
 include_directories($<TARGET_PROPERTY:network,INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:coroutine,INTERFACE_INCLUDE_DIRECTORIES>)
-add_executable(main main.cpp)
-target_link_libraries(main coroutine network)
+add_executable(main main.cpp bridge.cpp server.cpp client.cpp)
+target_link_libraries(main libyaml-cpp.a coroutine network libyaml-cpp.a)
