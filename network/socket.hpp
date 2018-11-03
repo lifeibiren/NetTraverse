@@ -72,7 +72,12 @@ public:
     {
         memcpy(ptr_, ptr, len);
     }
-    virtual ~byte_buffer() {}
+    byte_buffer(const byte_buffer &buffer) : byte_buffer(buffer.ptr_, buffer.size_)
+    {
+    }
+    virtual ~byte_buffer() {
+        delete[] ptr_;
+    }
 
     operator void *()
     {

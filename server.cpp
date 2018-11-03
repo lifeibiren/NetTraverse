@@ -83,7 +83,7 @@ int server()
     int tap_fd = open_tap();
     fd_handle handle(tap_fd);
     async_file_event event(pool, handle);
-    coroutine_t *co = co_create(4096, (void *)read_tap, &event);
+    coroutine_t *co = co_create(16384, (void *)read_tap, &event);
     co_post(co);
 
     udp_socket sock(pool);

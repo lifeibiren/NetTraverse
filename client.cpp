@@ -72,10 +72,10 @@ int client(address server_addr)
     env.udp = &sock;
     env.addr = server_addr;
 
-    coroutine_t *co = co_create(8192, (void *)read_tap, &env);
+    coroutine_t *co = co_create(16384, (void *)read_tap, &env);
     co_post(co);
 
-    co = co_create(8192, (void *)read_udp, &env);
+    co = co_create(16384, (void *)read_udp, &env);
     co_post(co);
 
     pool.poll_forever();
