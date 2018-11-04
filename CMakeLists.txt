@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
 
 add_subdirectory(coroutine)
 add_subdirectory(network)
+add_subdirectory(crypto)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-fsanitize=address,leak,undefined -g3")
 set(CMAKE_C_FLAGS_DEBUG "-fsanitize=address,leak,undefined -g3")
