@@ -4,6 +4,6 @@
 
 int main()
 {
-    printf("%x \n", multiplication(0x57, 0x83));
+//    printf("%x \n", multiplication(0x57, 0x83));
     return 0;
 }

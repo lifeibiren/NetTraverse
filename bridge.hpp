@@ -50,7 +50,13 @@ public:
             time(NULL),
             t
         };
-        table_.emplace(std::make_pair(addr, record));
+
+        auto it = table_.find(addr);
+        if (it != table_.end()) {
+            it->second = record;
+        } else {
+            table_.emplace(std::make_pair(addr, record));
+        }
     }
 
     bool query(const ethernet_address &addr, T &t)
@@ -126,6 +132,8 @@ class ethernet_bridge
 {
 public:
     typedef std::function<void (const byte_buffer &buffer)> forward_handler_type;
+
+    enum {bridge_mtu = 1500};
 
     ethernet_bridge()
     {

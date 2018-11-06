@@ -5,6 +5,8 @@
 #include "coroutine.h"
 #include "timer.hpp"
 #include "bridge.hpp"
+#include "bytebuffer.hpp"
+#include "compression.hpp"
 
 ethernet_bridge bridge;
 
@@ -18,8 +20,8 @@ static void read_tap(void *p)
 
     while (1)
     {
-        char buf[1500];
-        int ret = event->async_read_some(buf, 1500);
+        byte_buffer buffer(ethernet_bridge::bridge_mtu);
+        int ret = event->async_read_some(buffer, buffer.size());
         if (ret < 0)
         {
             perror("read\n");
@@ -27,7 +29,7 @@ static void read_tap(void *p)
         }
         printf("%d from tap\n", ret);
 
-        byte_buffer buffer(buf, ret);
+        buffer.resize(ret);
         bridge.forward(buffer, reply_handler);
     }
 }
@@ -55,23 +57,24 @@ static void read_udp(void *p)
     while (1)
     {
         address addr;
-        byte_buffer buffer(1500);
+        byte_buffer buffer(ethernet_bridge::bridge_mtu);
 
         int ret = sock->async_read_from(addr, buffer);
         if (ret < 0)
         {
             perror("async_send_to");
         }
-        xor_mess(buffer, ret);
         printf("%d from udp\n", ret);
 
         buffer.resize(ret);
-        bridge.forward(buffer, [&](const byte_buffer &buffer)
+        xor_mess(buffer, buffer.size());
+        byte_buffer decompre_buffer = compression::decompress(buffer, ethernet_bridge::bridge_mtu);
+        bridge.forward(decompre_buffer, [&](const byte_buffer &buffer)
         {
             address addr_copy = addr;
-            byte_buffer encrypt_buffer(buffer);
-            xor_mess(encrypt_buffer, encrypt_buffer.size());
-            sock->async_send_to(addr_copy, encrypt_buffer);
+            byte_buffer compre_buffer = compression::compress(buffer);
+            xor_mess(compre_buffer, compre_buffer.size());
+            sock->async_send_to(addr_copy, compre_buffer);
         });
     }
 }
@@ -83,11 +86,11 @@ int server()
     int tap_fd = open_tap();
     fd_handle handle(tap_fd);
     async_file_event event(pool, handle);
-    coroutine_t *co = co_create(16384, (void *)read_tap, &event);
+    coroutine_t *co = co_create(65536, (void *)read_tap, &event);
     co_post(co);
 
     udp_socket sock(pool);
-    co = co_create(16384, (void *)read_udp, &sock);
+    co = co_create(65536, (void *)read_udp, &sock);
     co_post(co);
 
     pool.poll_forever();

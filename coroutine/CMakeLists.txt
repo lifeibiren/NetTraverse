@@ -7,8 +7,8 @@ enable_language(ASM)
 # set(ASM_DIALECT "-ATT")
 
 # _asm_compiler(gcc)
-set(CMAKE_C_FLAGS "-Wall")
-set(CMAKE_CXX_FLAGS "-Wall")
+set(CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "-Wall ${CMAKE_CXX_FLAGS}")
 
 include_directories(src)
 add_subdirectory(src)

@@ -6,6 +6,8 @@
 #include "timer.hpp"
 #include "bridge.hpp"
 
+#include "compression/compression.hpp"
+
 struct client_env {
     async_file_event *tap;
     udp_socket *udp;
@@ -18,19 +20,19 @@ static void read_tap(void *p)
 
     while (1)
     {
-        char buf[1500];
-        int ret = event->async_read_some(buf, 1500);
+        byte_buffer buffer(ethernet_bridge::bridge_mtu);
+        int ret = event->async_read_some(buffer, buffer.size());
         if (ret < 0)
         {
             perror("read\n");
             abort();
         }
-
         printf("%d from tap\n", ret);
 
-        byte_buffer buffer(buf, ret);
-        xor_mess(buffer, buffer.size());
-        sock->async_send_to(((client_env *)p)->addr, buffer);
+        buffer.resize(ret);
+        byte_buffer compre_buffer = compression::compress(buffer);
+        xor_mess(compre_buffer, compre_buffer.size());
+        sock->async_send_to(((client_env *)p)->addr, compre_buffer);
     }
 }
 
@@ -42,17 +44,19 @@ static void read_udp(void *p)
     while (1)
     {
         address addr;
-        byte_buffer buffer(1500);
+        byte_buffer buffer(ethernet_bridge::bridge_mtu);
 
         int ret = sock->async_read_from(addr, buffer);
         if (ret < 0)
         {
             perror("async_send_to");
         }
-        xor_mess(buffer, ret);
-
         printf("%d from udp\n", ret);
-        event->async_write(buffer, ret);
+
+        buffer.resize(ret);
+        xor_mess(buffer, buffer.size());
+        byte_buffer decompre_buffer = compression::decompress(buffer, ethernet_bridge::bridge_mtu);
+        event->async_write(decompre_buffer, decompre_buffer.size());
     }
 }
 
@@ -72,10 +76,10 @@ int client(address server_addr)
     env.udp = &sock;
     env.addr = server_addr;
 
-    coroutine_t *co = co_create(16384, (void *)read_tap, &env);
+    coroutine_t *co = co_create(65536, (void *)read_tap, &env);
     co_post(co);
 
-    co = co_create(16384, (void *)read_udp, &env);
+    co = co_create(65536, (void *)read_udp, &env);
     co_post(co);
 
     pool.poll_forever();
