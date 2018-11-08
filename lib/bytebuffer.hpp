@@ -2,6 +2,9 @@
 
 #include <cinttypes>
 #include <cstring>
+#include <exception.hpp>
+
+struct buffer_overflow : exception {};
 
 class byte_buffer
 {
@@ -10,7 +13,7 @@ public:
     {}
     byte_buffer(std::size_t size) : ptr_(new std::uint8_t[size]), size_(size)
     {}
-    byte_buffer(void *ptr, std::size_t len) : byte_buffer(len)
+    byte_buffer(const void *ptr, std::size_t len) : byte_buffer(len)
     {
         memcpy(ptr_, ptr, len);
     }
@@ -58,6 +61,12 @@ public:
     {
         return size_;
     }
+    bool operator==(const byte_buffer &rms) const
+    {
+        if (size_ != rms.size_)
+            return false;
+        return memcmp(ptr_, rms.ptr_, size_) == 0;
+    }
     std::uint8_t &operator[](std::size_t index)
     {
         if (index > size_)
@@ -66,6 +75,14 @@ public:
             bcopy(ptr_, new_ptr, size_);
             delete []ptr_;
             ptr_ = new_ptr;
+        }
+        return ptr_[index];
+    }
+    const std::uint8_t &operator[](std::size_t index) const
+    {
+        if (index > size_)
+        {
+            throw buffer_overflow();
         }
         return ptr_[index];
     }
@@ -85,7 +102,7 @@ public:
         }
         return size_;
     }
-    std::size_t fill(void *buf, std::size_t size, std::size_t offset = 0)
+    std::size_t fill(void *buf, std::size_t size, std::size_t offset = 0) const
     {
         std::size_t to_copy = size_ - offset;
         to_copy = to_copy > size ? size : to_copy;

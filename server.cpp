@@ -6,7 +6,7 @@
 #include "timer.hpp"
 #include "bridge.hpp"
 #include "bytebuffer.hpp"
-#include "compression.hpp"
+#include "AES.hpp"
 
 ethernet_bridge bridge;
 
@@ -37,21 +37,10 @@ static void read_tap(void *p)
 static void read_udp(void *p)
 {
     udp_socket *sock = (udp_socket *)p;
-//    async_timer_event timer(sock->pool());
-
-
-//    address addr("180.76.76.76", 53);
-//    addr.resolve();
-//    char query[] = "\x12\x34\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x05\x62\x61\x69\x64\x75\x03\x63\x6f\x6d\x00\x00\x01\x00\x01";
-
-//    byte_buffer buffer(sizeof(query) - 1);
-//    buffer.fill(query, sizeof(query) - 1);
-
-//    address addr2;
-//    byte_buffer buffer2(1500);
     address addr("0.0.0.0", 9999);
     addr.resolve();
     sock->bind(addr);
+    AES aes(AES_key("my passwd"));
     printf("listening on 0.0.0.0:9999\n");
 
     while (1)
@@ -68,13 +57,13 @@ static void read_udp(void *p)
 
         buffer.resize(ret);
         xor_mess(buffer, buffer.size());
-        byte_buffer decompre_buffer = compression::decompress(buffer, ethernet_bridge::bridge_mtu);
-        bridge.forward(decompre_buffer, [&](const byte_buffer &buffer)
+        byte_buffer decrypt_buffer = aes.AES_decrypt(buffer);
+        bridge.forward(decrypt_buffer, [&](const byte_buffer &buffer)
         {
             address addr_copy = addr;
-            byte_buffer compre_buffer = compression::compress(buffer);
-            xor_mess(compre_buffer, compre_buffer.size());
-            sock->async_send_to(addr_copy, compre_buffer);
+            byte_buffer encrypt_buffer = aes.AES_encrypt(buffer);
+            xor_mess(encrypt_buffer, encrypt_buffer.size());
+            sock->async_send_to(addr_copy, encrypt_buffer);
         });
     }
 }

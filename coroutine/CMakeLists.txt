@@ -13,5 +13,5 @@ set(CMAKE_CXX_FLAGS "-Wall ${CMAKE_CXX_FLAGS}")
 include_directories(src)
 add_subdirectory(src)
 
-add_executable(test test.cpp)
-target_link_libraries(test coroutine)
+add_executable(co_test test.cpp)
+target_link_libraries(co_test coroutine)

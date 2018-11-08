@@ -6,17 +6,20 @@
 #include "timer.hpp"
 #include "bridge.hpp"
 
-#include "compression/compression.hpp"
+#include "AES.hpp"
 
 struct client_env {
     async_file_event *tap;
     udp_socket *udp;
     address addr;
+    AES *aes;
 };
 static void read_tap(void *p)
 {
     async_file_event *event = ((client_env *)p)->tap;
     udp_socket *sock = ((client_env *)p)->udp;
+    AES *aes = ((client_env *)p)->aes;
+
 
     while (1)
     {
@@ -30,9 +33,9 @@ static void read_tap(void *p)
         printf("%d from tap\n", ret);
 
         buffer.resize(ret);
-        byte_buffer compre_buffer = compression::compress(buffer);
-        xor_mess(compre_buffer, compre_buffer.size());
-        sock->async_send_to(((client_env *)p)->addr, compre_buffer);
+        byte_buffer encrypt_buffer = aes->AES_encrypt(buffer);
+        xor_mess(encrypt_buffer, encrypt_buffer.size());
+        sock->async_send_to(((client_env *)p)->addr, encrypt_buffer);
     }
 }
 
@@ -40,6 +43,7 @@ static void read_udp(void *p)
 {
     async_file_event *event = ((client_env *)p)->tap;
     udp_socket *sock = ((client_env *)p)->udp;
+    AES *aes = ((client_env *)p)->aes;
 
     while (1)
     {
@@ -55,8 +59,8 @@ static void read_udp(void *p)
 
         buffer.resize(ret);
         xor_mess(buffer, buffer.size());
-        byte_buffer decompre_buffer = compression::decompress(buffer, ethernet_bridge::bridge_mtu);
-        event->async_write(decompre_buffer, decompre_buffer.size());
+        byte_buffer decrypt_buffer = aes->AES_decrypt(buffer);
+        event->async_write(decrypt_buffer, decrypt_buffer.size());
     }
 }
 
@@ -75,6 +79,7 @@ int client(address server_addr)
     env.tap = &event;
     env.udp = &sock;
     env.addr = server_addr;
+    env.aes = new AES(AES_key("my passwd"));
 
     coroutine_t *co = co_create(65536, (void *)read_tap, &env);
     co_post(co);
