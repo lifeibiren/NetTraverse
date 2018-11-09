@@ -10,8 +10,8 @@
 
 #include <yaml-cpp/yaml.h>
 
-void server();
-int client(address server_addr);
+#include "config.hpp"
+
 
 int main(int argc, char *args[])
 {
@@ -19,18 +19,19 @@ int main(int argc, char *args[])
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
+    if (argc != 2) {
+        std::cout<<"must specify configuration file"<<std::endl;
+    }
 
-    if (argc != 2)
+    config conf(YAML::LoadFile(args[1]));
+
+    if (conf.mode() == bridge_mode::server)
     {
-        // server in default configuration
-        server();
+        server(conf);
     }
     else
     {
-        YAML::Node &&node = YAML::LoadFile(args[1]);
-        address server(node["ip"].as<std::string>(), node["port"].as<int>());
-//        yaml_parse(args[1]);
-        client(server);
+        client(conf);
     }
 
     return 0;

@@ -125,7 +125,7 @@ public:
 protected:
     std::map<ethernet_address, ethernet_address_record> table_;
     std::list<ethernet_address_record *> list_;
-    enum {timeout = 60};
+    enum {timeout = 600};
 };
 
 class ethernet_bridge

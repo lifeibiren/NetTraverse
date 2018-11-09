@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stdlib.h>
 #include "ctx.h"
 
 #ifdef __cplusplus
@@ -10,7 +11,7 @@ typedef struct coroutine
     context_t *stack_top;
     void *stack;
     void *param;
-    void (*routine)(void *);
+    void *routine;
     uint64_t stack_size;
     uint64_t id;
 } coroutine_t;
@@ -31,5 +32,26 @@ uint64_t co_num_ready(void);
 
 #ifdef __cplusplus
 }
-#endif
 
+template<typename FUNC>
+void co_launch_cxx(void)
+{
+    extern coroutine_t *current;
+
+    FUNC *func_ptr = (FUNC *)current->routine;
+    (*func_ptr)();
+    delete func_ptr;
+}
+
+template<typename FUNC>
+coroutine_t *co_create_cxx(FUNC func, uint64_t stack_size = 0x100000)
+{
+    coroutine_t *co = (coroutine_t *)malloc(sizeof(coroutine_t));
+    co->stack = malloc(stack_size);
+    co->stack_size = stack_size;
+    co->stack_top = co_stack_init(co->stack, co->stack_size, (void *)&co_launch_cxx<FUNC>);
+    co->routine = (void *)(new FUNC(func));
+    return co;
+}
+
+#endif

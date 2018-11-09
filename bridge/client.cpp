@@ -8,18 +8,19 @@
 
 #include "AES.hpp"
 
+#include "config.hpp"
+
 struct client_env {
     async_file_event *tap;
     udp_socket *udp;
     address addr;
     AES *aes;
 };
-static void read_tap(void *p)
+static void read_tap(client_env &env)
 {
-    async_file_event *event = ((client_env *)p)->tap;
-    udp_socket *sock = ((client_env *)p)->udp;
-    AES *aes = ((client_env *)p)->aes;
-
+    async_file_event *event = env.tap;
+    udp_socket *sock = env.udp;
+    AES *aes = env.aes;
 
     while (1)
     {
@@ -35,15 +36,15 @@ static void read_tap(void *p)
         buffer.resize(ret);
         byte_buffer encrypt_buffer = aes->AES_encrypt(buffer);
         xor_mess(encrypt_buffer, encrypt_buffer.size());
-        sock->async_send_to(((client_env *)p)->addr, encrypt_buffer);
+        sock->async_send_to(env.addr, encrypt_buffer);
     }
 }
 
-static void read_udp(void *p)
+static void read_udp(client_env &env)
 {
-    async_file_event *event = ((client_env *)p)->tap;
-    udp_socket *sock = ((client_env *)p)->udp;
-    AES *aes = ((client_env *)p)->aes;
+    async_file_event *event = env.tap;
+    udp_socket *sock = env.udp;
+    AES *aes = env.aes;
 
     while (1)
     {
@@ -64,14 +65,15 @@ static void read_udp(void *p)
     }
 }
 
-int client(address server_addr)
+int client(config &conf)
 {
+    address server_addr(conf.remote_address(), conf.remote_port());
     server_addr.resolve();
 
     epoll_event_pool pool;
 
-    int tap_fd = open_tap();
-    fd_handle handle(tap_fd);
+    tap tap0(conf.tap_dev());
+    fd_handle handle(tap0.fd());
     async_file_event event(pool, handle);
     udp_socket sock(pool);
 
@@ -79,12 +81,12 @@ int client(address server_addr)
     env.tap = &event;
     env.udp = &sock;
     env.addr = server_addr;
-    env.aes = new AES(AES_key("my passwd"));
+    env.aes = new AES(AES_key(conf.key()));
 
-    coroutine_t *co = co_create(65536, (void *)read_tap, &env);
+    coroutine_t *co = co_create_cxx(std::bind(read_tap, std::ref(env)), 65536);
     co_post(co);
 
-    co = co_create(65536, (void *)read_udp, &env);
+    co = co_create_cxx(std::bind(read_udp, std::ref(env)), 65536);
     co_post(co);
 
     pool.poll_forever();

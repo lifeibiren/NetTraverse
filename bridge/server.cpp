@@ -8,20 +8,25 @@
 #include "bytebuffer.hpp"
 #include "AES.hpp"
 
+#include "config.hpp"
+
 ethernet_bridge bridge;
 
-static void read_tap(void *p)
+static void read_tap(config &conf, epoll_event_pool &pool)
 {
-    async_file_event *event = (async_file_event *)p;
+    tap tap0(conf.tap_dev());
+    fd_handle handle(tap0.fd());
+    async_file_event event(pool, handle);
+
     auto reply_handler = [&](const byte_buffer &buffer)
     {
-        event->async_write(buffer, buffer.size());
+        event.async_write(buffer, buffer.size());
     };
 
     while (1)
     {
         byte_buffer buffer(ethernet_bridge::bridge_mtu);
-        int ret = event->async_read_some(buffer, buffer.size());
+        int ret = event.async_read_some(buffer, buffer.size());
         if (ret < 0)
         {
             perror("read\n");
@@ -34,21 +39,22 @@ static void read_tap(void *p)
     }
 }
 
-static void read_udp(void *p)
+static void read_udp(config &conf, epoll_event_pool &pool)
 {
-    udp_socket *sock = (udp_socket *)p;
-    address addr("0.0.0.0", 9999);
+    udp_socket sock(pool);
+
+    address addr(conf.bind_address(), conf.bind_port());
     addr.resolve();
-    sock->bind(addr);
-    AES aes(AES_key("my passwd"));
-    printf("listening on 0.0.0.0:9999\n");
+    sock.bind(addr);
+    AES aes(AES_key(conf.key()));
+    std::cout<<"listening on "<<conf.bind_address()<<":"<<conf.bind_port()<<std::endl;
 
     while (1)
     {
         address addr;
         byte_buffer buffer(ethernet_bridge::bridge_mtu);
 
-        int ret = sock->async_read_from(addr, buffer);
+        int ret = sock.async_read_from(addr, buffer);
         if (ret < 0)
         {
             perror("async_send_to");
@@ -63,23 +69,18 @@ static void read_udp(void *p)
             address addr_copy = addr;
             byte_buffer encrypt_buffer = aes.AES_encrypt(buffer);
             xor_mess(encrypt_buffer, encrypt_buffer.size());
-            sock->async_send_to(addr_copy, encrypt_buffer);
+            sock.async_send_to(addr_copy, encrypt_buffer);
         });
     }
 }
 
-int server()
+int server(config &conf)
 {
     epoll_event_pool pool;
-
-    int tap_fd = open_tap();
-    fd_handle handle(tap_fd);
-    async_file_event event(pool, handle);
-    coroutine_t *co = co_create(65536, (void *)read_tap, &event);
+    coroutine_t *co = co_create_cxx(std::bind(read_tap, std::ref(conf), std::ref(pool)), 65536);
     co_post(co);
 
-    udp_socket sock(pool);
-    co = co_create(65536, (void *)read_udp, &sock);
+    co = co_create_cxx(std::bind(read_udp, std::ref(conf), std::ref(pool)), 65536);
     co_post(co);
 
     pool.poll_forever();
