@@ -38,9 +38,12 @@ struct AES_IV
     std::uint8_t bytes[AES_BLOCK_SIZE];
 };
 
+
 class AES
 {
 public:
+    typedef std::runtime_error ssl_internal_error;
+
     AES(const AES_key &key) : key_(key)
     {}
     byte_buffer AES_encrypt(const byte_buffer &buffer);

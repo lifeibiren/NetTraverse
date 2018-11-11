@@ -9,7 +9,7 @@ include_directories(.)
 add_library(cryptography AES.cpp)
 
 add_executable(aes_test test.cpp)
-target_link_libraries(aes_test cryptography ssl crypto)
+target_link_libraries(aes_test cryptography ssl crypto common)
 
 add_test(AES_test aes_test)
 

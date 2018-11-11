@@ -13,6 +13,9 @@ struct EVP_auto_ptr
     EVP_auto_ptr()
     {
         ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+            throw AES::ssl_internal_error("EVP_CIPHER_CTX_new");
+        }
     }
     ~EVP_auto_ptr()
     {
@@ -29,9 +32,13 @@ class cipher_buffer
 {
 public:
     typedef std::uint32_t length_type;
+
+    cipher_buffer(const cipher_buffer &) = delete;
+
     cipher_buffer(const byte_buffer &origin) : buffer(origin)
     {
     }
+
     cipher_buffer(const AES_IV &iv, length_type origin_len) : buffer(origin_len + sizeof(length_type) + AES_BLOCK_SIZE * 2)
     {
         memcpy(buffer, iv.bytes, AES_BLOCK_SIZE); // record initial vector
@@ -42,7 +49,6 @@ public:
         return *(length_type *)(std::uint8_t *)&buffer[AES_BLOCK_SIZE];
     }
 
-    cipher_buffer(const cipher_buffer &) = delete;
     AES_IV &iv()
     {
         return *(AES_IV *)(std::uint8_t *)buffer;
@@ -71,9 +77,6 @@ protected:
     byte_buffer buffer;
 };
 
-/*
- * AES won't change data's length
- */
 byte_buffer AES::AES_encrypt(const byte_buffer &plain)
 {
     RAND_bytes(iv_.bytes, sizeof(iv_));
@@ -86,19 +89,20 @@ byte_buffer AES::AES_encrypt(const byte_buffer &plain)
 
     if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key_.bytes, iv_.bytes) != 1)
     {
-
+        throw AES::ssl_internal_error("EVP_CIPHER_CTX_new");
     }
 
     if (EVP_EncryptUpdate(ctx, cipher, &len, plain, plain.size()) != 1)
     {
-
+        throw AES::ssl_internal_error("EVP_EncryptUpdate");
     }
     ciphertext_len = len;
 
     if (EVP_EncryptFinal_ex(ctx, (std::uint8_t *)cipher + len, &len) != 1)
     {
-
+        throw AES::ssl_internal_error("EVP_EncryptFinal_ex");
     }
+
     ciphertext_len += len;
 
     cipher.resize(ciphertext_len);
@@ -118,21 +122,24 @@ byte_buffer AES::AES_decrypt(const byte_buffer &buffer)
     int ciphertext_len;
     if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key_.bytes, iv_.bytes) != 1)
     {
-
+        throw AES::ssl_internal_error("EVP_DecryptInit_ex");
     }
 
     if (EVP_DecryptUpdate(ctx, plain, &len, cipher, cipher.cipher_size()) != 1)
     {
-
+        throw AES::ssl_internal_error("EVP_DecryptUpdate");
     }
     ciphertext_len = len;
 
-    if (EVP_DecryptFinal_ex(ctx, (std::uint8_t *)plain + len, &len))
+    if (EVP_DecryptFinal_ex(ctx, (std::uint8_t *)plain + len, &len) != 1)
     {
-
+        throw AES::ssl_internal_error("EVP_DecryptFinal_ex");
     }
     ciphertext_len += len;
 
-    plain.resize(cipher.plaintext_len());
+    if (cipher.plaintext_len() < plain.size())
+    {
+        plain.resize(cipher.plaintext_len());
+    }
     return plain;
 }

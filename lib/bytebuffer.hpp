@@ -109,6 +109,8 @@ public:
         bcopy(buf, ptr_ + offset, to_copy);
         return to_copy;
     }
+
+    static const byte_buffer empty_buffer;
 protected:
     std::uint8_t *ptr_;
     std::size_t size_;
