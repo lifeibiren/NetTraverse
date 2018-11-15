@@ -168,7 +168,7 @@ protected:
     int event_;
     int waited_;
     int waited_mask_;
-    coroutine_t *co_read, *co_write, *co_wait;
+    coroutine *co_read, *co_write, *co_wait;
 public:
     async_file_event(epoll_event_pool &pool, fd_handle h) : pool_(pool), handle_(h), event_(0), waited_(0), waited_mask_(0),
         co_read(NULL), co_write(NULL), co_wait(NULL)

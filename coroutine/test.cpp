@@ -40,13 +40,36 @@ void routine(void *)
 
 void routine_bind(int a)
 {
-    printf("Routine Bind\n");
+    printf("Routine Bind %d\n", a);
+}
+
+void routine_function_ptr_cxx()
+{
+    printf("Routine Function Ptr\n");
+}
+
+void routine_shared1(void *)
+{
+    co_resched();
+    printf("Routine Shared 1\n");
+}
+
+void routine_shared2(void *)
+{
+    co_resched();
+    printf("Routine Shared 2\n");
+}
+
+void routine_shared3(void *)
+{
+    co_resched();
+    printf("Routine Shared 3\n");
 }
 
 int main(void)
 {
     co_init();
-    coroutine_t *co = co_create(409600, (void*)routine, NULL);
+    coroutine *co = co_create(409600, (void*)routine, NULL);
     co_post(co);
 
     begin = gettime();
@@ -78,6 +101,23 @@ int main(void)
 
     co_resched();
     printf("Return to Main\n");
+
+    co = co_create_cxx(routine_function_ptr_cxx, 4096);
+    co_post(co);
+
+    co_resched();
+    printf("Return to Main\n");
+
+
+    co = co_create_shared((void*)routine_shared1, NULL);
+    co_post(co);
+//    co = co_create_shared((void*)routine_shared2, NULL);
+//    co_post(co);
+//    co = co_create_shared((void*)routine_shared3, NULL);
+//    co_post(co);
+
+    co_resched();
+    co_resched();
 
     return 0;
 }

@@ -77,7 +77,7 @@ static void read_udp(config &conf, epoll_event_pool &pool)
 int server(config &conf)
 {
     epoll_event_pool pool;
-    coroutine_t *co = co_create_cxx(std::bind(read_tap, std::ref(conf), std::ref(pool)), 65536);
+    coroutine *co = co_create_cxx(std::bind(read_tap, std::ref(conf), std::ref(pool)), 65536);
     co_post(co);
 
     co = co_create_cxx(std::bind(read_udp, std::ref(conf), std::ref(pool)), 65536);

@@ -3,21 +3,35 @@
 #include <stdlib.h>
 #include <list>
 
-coroutine_t *current;
-static std::list<coroutine_t *> queue_;
-static std::list<coroutine_t *> to_free_;
+coroutine *current;
+static std::list<coroutine *> queue_;
+static std::list<coroutine *> to_free_;
+enum {shared_stack_pool_size = 2};
+co_stack **shared_stack_pool;
+size_t shared_stack_alloc_count = 0;
 
 void co_launch(void)
 {
     ((void (*)(void *))current->routine)(current->param);
 }
 
-coroutine_t *co_create(uint64_t stack_size, void *routine, void *param)
+coroutine *co_create(uint64_t stack_size, void *routine, void *param)
 {
-    coroutine_t *co = (coroutine_t *)malloc(sizeof(coroutine_t));
-    co->stack = malloc(stack_size);
-    co->stack_size = stack_size;
-    co->stack_top = co_stack_init(co->stack, co->stack_size, (void *)co_launch);
+    coroutine *co = new coroutine;
+    co->stack = new co_stack(stack_size);
+    co->saved_sp = co_stack_init(co->stack->stack_bottom, co->stack->stack_size, (void *)co_launch);
+    co->param = param;
+    co->routine = routine;
+    return co;
+}
+
+coroutine *co_create_shared(void *routine, void *param)
+{
+    coroutine *co = new coroutine(true);
+    co->stack = shared_stack_pool[shared_stack_alloc_count % shared_stack_pool_size];
+    co->stack_copy_ = (uint8_t *)malloc(1024);
+    co->stack_copy_size_ = 1024;
+    co->saved_sp = (context_t *)(co->stack->stack_top - (co->stack_copy_ + co->stack_copy_size_ - ((uint8_t *)co_stack_init(co->stack_copy_, co->stack_copy_size_, (void *)co_launch))));
     co->param = param;
     co->routine = routine;
     return co;
@@ -39,15 +53,31 @@ void co_init(void)
 {
     if (!current)
     {
-        current = (coroutine_t *)malloc(sizeof(coroutine_t));
-        current->stack_size = 0;
-        current->stack = NULL;
+        current = new coroutine;
+        current->stack = new co_stack;
+    }
+    shared_stack_pool = new co_stack *[shared_stack_pool_size];
+    for (size_t i = 0; i < shared_stack_pool_size; i ++)
+    {
+        shared_stack_pool[i] = new co_stack(65536);
     }
 }
 
-void co_post(coroutine_t *co)
+void co_post(coroutine *co)
 {
     queue_.push_back(co);
+}
+
+void co_swap_in(coroutine *co)
+{
+    if (co->in_stack()) {
+        return;
+    }
+    if (co->stack->used_by)
+    {
+        co->stack->used_by->save_stack();
+    }
+    co->restore_stack();
 }
 
 /*
@@ -55,22 +85,25 @@ void co_post(coroutine_t *co)
  */
 void co_sched(void)
 {
-    coroutine_t *next = *queue_.begin();
+    coroutine *next = *queue_.begin();
     if (!next)
         return;
     queue_.pop_front();
 
-    coroutine_t *old = current;
+    coroutine *old = current;
     current = next;
 
-    context_switch(&next->stack_top, &old->stack_top);
+    if (next->use_shared_stack()) {
+        co_swap_in(next);
+    }
+
+    context_switch(&next->saved_sp, &old->saved_sp);
 
     // cleanup
     while(!to_free_.empty())
     {
         auto it = to_free_.begin();
-        free((*it)->stack);
-        free(*it);
+        delete *it;
         to_free_.pop_front();
     }
 }
@@ -94,7 +127,7 @@ uint64_t co_num_ready(void)
     return queue_.size();
 }
 
-void co_yield(coroutine_t **co)
+void co_yield(coroutine **co)
 {
     *co = current;
 

@@ -83,7 +83,7 @@ int client(config &conf)
     env.addr = server_addr;
     env.aes = new AES(AES_key(conf.key()));
 
-    coroutine_t *co = co_create_cxx(std::bind(read_tap, std::ref(env)), 65536);
+    coroutine *co = co_create_cxx(std::bind(read_tap, std::ref(env)), 65536);
     co_post(co);
 
     co = co_create_cxx(std::bind(read_udp, std::ref(env)), 65536);

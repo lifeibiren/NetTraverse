@@ -6,6 +6,7 @@ include_directories(.)
 include_directories($<TARGET_PROPERTY:coroutine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_subdirectory(epoll)
+add_subdirectory(protocol)
 
 
 file(GLOB network_src *.cc *.cpp)
