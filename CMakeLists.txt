@@ -19,6 +19,7 @@ add_subdirectory(network)
 add_subdirectory(crypto)
 add_subdirectory(compression)
 add_subdirectory(bridge)
+add_subdirectory(utils)
 
 
 
