@@ -21,19 +21,6 @@ typedef struct context
  *     destination pointer for string operations
  * 
  */
-    uint32_t mxcsr;
-
-#define mxcsr_IM (1 << 7)
-#define mxcsr_DM (1 << 8)
-#define mxcsr_ZM (1 << 9)
-#define mxcsr_OM (1 << 10)
-#define mxcsr_UM (1 << 11)
-#define mxcsr_PM (1 << 12)
-#define mxcsr_MASK (mxcsr_IM | mxcsr_DM | mxcsr_ZM | mxcsr_OM | mxcsr_UM | mxcsr_PM)
-    
-    uint32_t x87_cw;
-    
-#define x87_cw_mask 0x37f
 // 	uint64_t RAX;
 // 	uint64_t RCX;
 // 	uint64_t RDX;
@@ -51,7 +38,22 @@ typedef struct context
 	uint64_t R14;
 	uint64_t R15;
 
+    uint64_t RSP;
     uint64_t RIP;
+    
+    uint32_t mxcsr;
+
+#define mxcsr_IM (1 << 7)
+#define mxcsr_DM (1 << 8)
+#define mxcsr_ZM (1 << 9)
+#define mxcsr_OM (1 << 10)
+#define mxcsr_UM (1 << 11)
+#define mxcsr_PM (1 << 12)
+#define mxcsr_MASK (mxcsr_IM | mxcsr_DM | mxcsr_ZM | mxcsr_OM | mxcsr_UM | mxcsr_PM)
+    
+    uint32_t x87_cw;
+    
+#define x87_cw_mask 0x37f
     
 }context_t;
 #ifdef __cplusplus

@@ -10,10 +10,6 @@
 
 #include <functional>
 
-volatile context_t *new_stack = 0, *old_stack = 0;
-
-void *stack;
-
 uint64_t gettime()
 {
     struct timespec ts;
@@ -50,20 +46,21 @@ void routine_function_ptr_cxx()
 
 void routine_shared1(void *)
 {
-    co_resched();
     printf("Routine Shared 1\n");
+    co_resched();
+    printf("dfdf\n");
 }
 
 void routine_shared2(void *)
 {
-    co_resched();
     printf("Routine Shared 2\n");
+    co_resched();
 }
 
 void routine_shared3(void *)
 {
-    co_resched();
     printf("Routine Shared 3\n");
+    co_resched();
 }
 
 int main(void)
@@ -111,10 +108,10 @@ int main(void)
 
     co = co_create_shared((void*)routine_shared1, NULL);
     co_post(co);
-//    co = co_create_shared((void*)routine_shared2, NULL);
-//    co_post(co);
-//    co = co_create_shared((void*)routine_shared3, NULL);
-//    co_post(co);
+    co = co_create_shared((void*)routine_shared2, NULL);
+    co_post(co);
+    co = co_create_shared((void*)routine_shared3, NULL);
+    co_post(co);
 
     co_resched();
     co_resched();
