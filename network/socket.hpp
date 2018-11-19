@@ -29,7 +29,7 @@ public:
     {
         return len_;
     }
-    address() {}
+    address() : len_(sizeof(sockaddr_storage)) {}
     address(const std::string &host, std::uint16_t port)
         : host_(host), port_(std::to_string(port))
     {
@@ -38,7 +38,11 @@ public:
     int resolve()
     {
         struct addrinfo *info;
-        int ret = getaddrinfo(host_.c_str(), port_.c_str(), NULL, &info);
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+
+        int ret = getaddrinfo(host_.c_str(), port_.c_str(), &hints, &info);
         if (ret < 0)
         {
             perror("getaddrinfo");
@@ -85,7 +89,10 @@ public:
     }
     void bind(address &addr)
     {
-        ::bind(handle_.fd_, addr.get_sockaddr(), addr.get_sockaddr_len());
+        if (::bind(handle_.fd_, addr.get_sockaddr(), addr.get_sockaddr_len()) < 0)
+        {
+            perror("bind");
+        }
     }
     int async_send_to(const address &addr, const byte_buffer &buffer)
     {
@@ -106,7 +113,7 @@ public:
                     return ret;
                 }
             }
-            else if (ret != buffer.size())
+            else if ((size_t)ret != buffer.size())
             {
                 perror("sendto");
                 return ret;

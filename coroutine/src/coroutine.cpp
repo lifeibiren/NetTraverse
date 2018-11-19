@@ -17,21 +17,23 @@ void co_launch(void)
     ((void (*)(void *))current->routine)(current->param);
 }
 
+co_stack *co_alloc_shared_stack(void)
+{
+    return shared_stack_pool[shared_stack_alloc_count++ % shared_stack_pool_size];
+}
+
 coroutine *co_create(uint64_t stack_size, void *routine, void *param)
 {
-    coroutine *co = new coroutine;
-    co->stack = new co_stack(stack_size);
-    co_stack_init(&co->saved_ctx, co->stack, (void *)co_launch);
-    co->param = param;
-    co->routine = routine;
+    coroutine *co = new coroutine((void *)routine, param);
+    co_stack *stack = new co_stack(stack_size);
+    co->set_stack(stack);
     return co;
 }
 
 coroutine *co_create_shared(void *routine, void *param)
 {
-    coroutine *co = new coroutine(true);
-    co->param = param;
-    co->routine = routine;
+    coroutine *co = new coroutine(routine, param, true);
+    co->set_stack(co_alloc_shared_stack());
     return co;
 }
 
@@ -47,13 +49,15 @@ void co_init(void)
 {
     if (!current)
     {
-        current = new coroutine;
+        current = new coroutine(nullptr);
         current->stack = new co_stack;
+        current->stack->used_by = current;
     }
+
     shared_stack_pool = new co_stack *[shared_stack_pool_size];
     for (size_t i = 0; i < shared_stack_pool_size; i ++)
     {
-        shared_stack_pool[i] = new co_stack(65536);
+        shared_stack_pool[i] = new co_stack(1024 * 1024, true);
     }
 }
 
@@ -68,24 +72,11 @@ void co_swap_in(coroutine *co)
     {
         return;
     }
-    if (co->stack)
+    if (co->stack->used_by)
     {
-        if (co->stack->used_by)
-        {
-            co->stack->used_by->save_stack();
-        }
-        co->restore_stack();
+        co->stack->used_by->save_stack();
     }
-    else
-    {
-        co->stack = shared_stack_pool[shared_stack_alloc_count++ % shared_stack_pool_size];
-        co_stack_init(&co->saved_ctx, co->stack, (void *)co_launch);
-        if (co->stack->used_by)
-        {
-            co->stack->used_by->save_stack();
-        }
-        co->stack->used_by = co;
-    }
+    co->restore_stack();
 }
 
 /*
@@ -110,12 +101,6 @@ void co_sched(void)
 
 void _co_exit(void)
 {
-    /*
-     * as soon as co_exit is called, the guard is corrupted
-     * TO FIX THIS:
-     *     use assembler function
-     */
-    current->stack->set_exit_guard();
     queue_.remove(current);
     delete current;
     co_sched();
@@ -138,15 +123,21 @@ void co_resched(void)
     save_context(&current->saved_ctx, &stack[STACK_SIZE], &_co_resched);
 }
 
-
-uint64_t co_num_ready(void)
+void _co_yield(void)
 {
-    return queue_.size();
+    co_sched();
 }
 
 void co_yield(coroutine **co)
 {
     *co = current;
 
-    co_sched();
+    save_context(&current->saved_ctx, &stack[STACK_SIZE], &_co_yield);
 }
+
+
+uint64_t co_num_ready(void)
+{
+    return queue_.size();
+}
+

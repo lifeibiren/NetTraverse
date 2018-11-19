@@ -63,6 +63,27 @@ void routine_shared3(void *)
     co_resched();
 }
 
+coroutine *yield1, *yield2;
+void routine_yield1()
+{
+    char buf[1024];
+    for (int i = 0; i < 1024; i ++)
+        buf[i] = i;
+    (void)buf;
+    printf("Routine Yield 1 Begin\n");
+    co_yield(&yield1);
+    printf("Routine Yield 1 End\n");
+    co_post(yield2);
+}
+
+void routine_yield2()
+{
+    printf("Routine Yield 2 Begin\n");
+    co_post(yield1);
+    co_yield(&yield2);
+    printf("Routine Yield 2 End\n");
+}
+
 int main(void)
 {
     co_init();
@@ -113,6 +134,15 @@ int main(void)
     co = co_create_shared((void*)routine_shared3, NULL);
     co_post(co);
 
+    co_resched();
+    co_resched();
+
+
+    co = co_create_cxx_shared(routine_yield1);
+    co_post(co);
+    co = co_create_cxx_shared(routine_yield2);
+    co_post(co);
+    co_resched();
     co_resched();
     co_resched();
 

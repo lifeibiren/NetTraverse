@@ -45,7 +45,7 @@ public:
     {
         struct ifreq ifr;
         memset(&ifr, 0, sizeof(ifr));
-        strncpy(ifr.ifr_name, name.c_str(), IFNAMSIZ);
+        strncpy(ifr.ifr_name, name.c_str(), IFNAMSIZ - 1);
         ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
         if (ioctl(fd_, TUNSETIFF, (void *)&ifr) < 0)
         {

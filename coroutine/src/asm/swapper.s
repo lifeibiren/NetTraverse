@@ -1,4 +1,4 @@
-.globl save_context, load_context, call_with_new_stack
+.globl save_context, load_context, call_with_new_stack, co_memcpy
 # void save_context(ctx *save, void *new_stack, void (*handler)(void))
 save_context:
     movq    %rbx,    (%rdi)
@@ -7,13 +7,17 @@ save_context:
     movq    %r13,  24(%rdi)
     movq    %r14,  32(%rdi)
     movq    %r15,  40(%rdi)
-    popq    %rax            # return ptr
+#    popq    %rax            # return ptr
+    lea     retaddr(%rip),  %rax
     movq    %rsp,  48(%rdi)
     movq    %rax,  56(%rdi)
     stmxcsr        64(%rdi)
     fnstcw         68(%rdi)
     movq    %rsi, %rsp
     jmpq   *%rdx
+retaddr:
+    ret
+
 
 # void load_context(ctx *saved)
 load_context:
@@ -33,3 +37,16 @@ load_context:
 call_with_new_stack:
     movq    %rdi, %rsp
     jmpq   *%rsi
+
+# void co_memcpy(void *dst, void *src, size_t len);
+co_memcpy:
+    cmp     $0, %rdx
+    je      end
+    movb    (%rsi), %al
+    movb    %al, (%rdi)
+    inc     %rsi
+    inc     %rdi
+    dec     %rdx
+    jnz     co_memcpy
+end:
+    retq

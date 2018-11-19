@@ -4,7 +4,7 @@ Project(NetTraverse)
 
 include(CTest)
 
-add_compile_options(-g3)
+add_compile_options(-g3 -O3)
 set(CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-Wall -std=c++11 ${CMAKE_CXX_FLAGS}")
 

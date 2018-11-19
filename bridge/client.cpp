@@ -55,6 +55,7 @@ static void read_udp(client_env &env)
         if (ret < 0)
         {
             perror("async_send_to");
+            continue;
         }
         printf("%d from udp\n", ret);
 
@@ -83,10 +84,10 @@ int client(config &conf)
     env.addr = server_addr;
     env.aes = new AES(AES_key(conf.key()));
 
-    coroutine *co = co_create_cxx(std::bind(read_tap, std::ref(env)), 65536);
+    coroutine *co = co_create_cxx_shared(std::bind(read_tap, std::ref(env)));
     co_post(co);
 
-    co = co_create_cxx(std::bind(read_udp, std::ref(env)), 65536);
+    co = co_create_cxx_shared(std::bind(read_udp, std::ref(env)));
     co_post(co);
 
     pool.poll_forever();
