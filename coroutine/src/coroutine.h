@@ -139,10 +139,9 @@ struct coroutine
     }
     void save_stack()
     {
-//        printf("%lx %lx\n", (uint64_t)stack->stack_top, saved_ctx.RSP);
         stack_copy_size_ = stack->stack_top - (uint8_t *)saved_ctx.RSP;
         stack_copy_ = (uint8_t *)malloc(stack_copy_size_);
-#if 1
+#if 0
         memcpy(stack_copy_, (uint8_t *)saved_ctx.RSP, stack_copy_size_);
 #else
         co_memcpy(stack_copy_, (uint8_t *)saved_ctx.RSP, stack_copy_size_);
@@ -153,7 +152,7 @@ struct coroutine
     void restore_stack()
     {
         void *dst = stack->stack_top - stack_copy_size_;
-#if 1
+#if 0
         memcpy(dst, stack_copy_, stack_copy_size_);
 #else
         co_memcpy(dst, stack_copy_, stack_copy_size_);

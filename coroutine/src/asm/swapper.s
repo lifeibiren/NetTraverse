@@ -40,13 +40,6 @@ call_with_new_stack:
 
 # void co_memcpy(void *dst, void *src, size_t len);
 co_memcpy:
-    cmp     $0, %rdx
-    je      end
-    movb    (%rsi), %al
-    movb    %al, (%rdi)
-    inc     %rsi
-    inc     %rdi
-    dec     %rdx
-    jnz     co_memcpy
-end:
+    movq    %rdx, %rcx
+    rep     movsb (%rsi), (%rdi)
     retq
