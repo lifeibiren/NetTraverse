@@ -177,7 +177,7 @@ coroutine *co_create_shared(void *routine, void *param);
 void co_yield(coroutine **co); // save current context and wait to be post/dispatch
 void co_post(coroutine *co); // put the coroutine to run later
 void co_dispath(coroutine *co); // run the coroutine immedately
-void co_destroy(coroutine *co);
+void co_destroy(coroutine *co); // destroy coroutine which isn't running
 void co_resched(void); // pick another coroutine to run
 void co_exit(void); // destroy current coroutine
 co_stack *co_alloc_shared_stack(void);

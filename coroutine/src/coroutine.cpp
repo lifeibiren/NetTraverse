@@ -37,6 +37,12 @@ coroutine *co_create_shared(void *routine, void *param)
     return co;
 }
 
+void co_destroy(coroutine *co)
+{
+    queue_.remove(co);
+    delete co;
+}
+
 void co_stack_init(context_t *ctx, co_stack *stack, void *routine)
 {
     ctx->RSP = (uint64_t)stack->stack_top;
@@ -102,7 +108,7 @@ void co_sched(void)
 void _co_exit(void)
 {
     queue_.remove(current);
-    delete current;
+    co_destroy(current);
     co_sched();
 }
 
