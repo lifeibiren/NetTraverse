@@ -76,7 +76,7 @@ public:
     {
     }
 
-    udp_socket(udp_socket &&sock) : async_file_event(std::move(sock))
+    udp_socket(udp_socket &&sock) noexcept : async_file_event(std::move(sock))
     {
         handle_.fd_ = sock.handle_.fd_;
         sock.handle_.fd_ = -1;
@@ -156,3 +156,62 @@ public:
         return false;
     }
 };
+
+
+class tcp_socket: public async_file_event
+{
+public:
+    tcp_socket(const tcp_socket &) = delete;
+
+    tcp_socket(epoll_event_pool &pool) : async_file_event(pool, socket(AF_INET, SOCK_STREAM, 0))
+    {
+    }
+
+    tcp_socket(tcp_socket &&sock) noexcept : async_file_event(std::move(sock))
+    {
+        handle_.fd_ = sock.handle_.fd_;
+        sock.handle_.fd_ = -1;
+    }
+
+    ~tcp_socket()
+    {
+        if (handle_.fd_ != -1) {
+            close(handle_.fd_);
+        }
+    }
+    void bind(address &addr)
+    {
+        if (::bind(handle_.fd_, addr.get_sockaddr(), addr.get_sockaddr_len()) < 0)
+        {
+            perror("bind");
+        }
+    }
+
+    int connect(const address &addr)
+    {
+        int ret;
+        if ((ret = ::connect(handle_.fd_, addr.get_sockaddr(), addr.get_sockaddr_len()) < 0))
+        {
+            if (ret < 0)
+            {
+                if (errno == EINPROGRESS)
+                {
+                    waited_ |= CAN_READ;
+                    co_yield(&co_read);
+                    waited_ &= ~CAN_READ;
+
+                    int so_error;
+                    socklen_t option_len;
+                    if (getsockopt(handle_.fd_, SO_ERROR, SOL_SOCKET, &so_error, &option_len)) {
+                        return -1;
+                    }
+                    if (so_error == 0) {
+                        return 0;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+};
+

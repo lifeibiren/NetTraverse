@@ -1,16 +1,18 @@
 #include "coroutine.h"
 
 #include <stdlib.h>
-#include <list>
+#include "scheduler.hpp"
+
 
 coroutine *current;
-static std::list<coroutine *> queue_;
 enum {shared_stack_pool_size = 1};
 co_stack **shared_stack_pool;
 size_t shared_stack_alloc_count = 0;
 
 #define STACK_SIZE (4096 + 8)
 uint8_t stack[STACK_SIZE];
+
+scheduler<coroutine *> *sched;
 
 void co_launch(void)
 {
@@ -39,7 +41,8 @@ coroutine *co_create_shared(void *routine, void *param)
 
 void co_destroy(coroutine *co)
 {
-    queue_.remove(co);
+//    sched->remove(co);
+//    queue_.remove(co);
     delete co;
 }
 
@@ -59,6 +62,10 @@ void co_init(void)
         current->stack = new co_stack;
         current->stack->used_by = current;
     }
+    if (!sched)
+    {
+        sched = new round_robin_scheduler<coroutine *>();
+    }
 
     shared_stack_pool = new co_stack *[shared_stack_pool_size];
     for (size_t i = 0; i < shared_stack_pool_size; i ++)
@@ -69,7 +76,20 @@ void co_init(void)
 
 void co_post(coroutine *co)
 {
-    queue_.push_back(co);
+    sched->enqueue(co);
+}
+
+static void _co_dispatch(void)
+{
+    load_context(&current->saved_ctx);
+}
+
+void co_dispath(coroutine *co)
+{
+    sched->enqueue(current);
+    current = co;
+
+    save_context(&current->saved_ctx, &stack[STACK_SIZE], &_co_dispatch);
 }
 
 void co_swap_in(coroutine *co)
@@ -90,10 +110,9 @@ void co_swap_in(coroutine *co)
  */
 void co_sched(void)
 {
-    coroutine *next = *queue_.begin();
+    coroutine *next = sched->dequeue();
     if (!next)
-        return;
-    queue_.pop_front();
+        abort();
 
     current = next;
 
@@ -107,7 +126,6 @@ void co_sched(void)
 
 void _co_exit(void)
 {
-    queue_.remove(current);
     co_destroy(current);
     co_sched();
 }
@@ -119,7 +137,7 @@ void co_exit(void)
 
 void _co_resched(void)
 {
-    queue_.push_back(current);
+    sched->enqueue(current);
 
     co_sched();
 }
@@ -144,6 +162,6 @@ void co_yield(coroutine **co)
 
 uint64_t co_num_ready(void)
 {
-    return queue_.size();
+    return sched->num();
 }
 

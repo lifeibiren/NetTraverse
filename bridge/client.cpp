@@ -66,6 +66,11 @@ static void read_udp(client_env &env)
     }
 }
 
+static void socksv5_client(client_env &env)
+{
+
+}
+
 int client(config &conf)
 {
     address server_addr(conf.remote_address(), conf.remote_port());
@@ -88,6 +93,9 @@ int client(config &conf)
     co_post(co);
 
     co = co_create_cxx_shared(std::bind(read_udp, std::ref(env)));
+    co_post(co);
+
+    co = co_create_cxx_shared(std::bind(socksv5_client, std::ref(env)));
     co_post(co);
 
     pool.poll_forever();
