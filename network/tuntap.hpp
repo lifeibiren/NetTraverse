@@ -73,13 +73,3 @@ public:
     virtual ~tun()
     {}
 };
-
-
-static inline void xor_mess(void *buf, std::size_t length)
-{
-    std::uint8_t *bytes = (std::uint8_t *)buf;
-    for (std::size_t i = 0; i < length; i++)
-    {
-        bytes[i] ^= 0x0f;
-    }
-}

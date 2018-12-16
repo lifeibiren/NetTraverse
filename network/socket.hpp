@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <netdb.h>
 #include <memory.h>
 
@@ -29,10 +31,23 @@ public:
     {
         return len_;
     }
-    address() : len_(sizeof(sockaddr_storage)) {}
+    address() : len_(sizeof(sockaddr_storage)) {
+        bzero(&addr_, sizeof(addr_));
+    }
     address(const std::string &host, std::uint16_t port)
         : host_(host), port_(std::to_string(port))
     {
+    }
+
+    std::string ip() const
+    {
+        char buf[sizeof("255.255.255.255")] = {0};
+        return std::string(inet_ntop(AF_INET, &((const struct sockaddr_in *)&addr_)->sin_addr, buf, sizeof(buf)));
+    }
+
+    uint16_t port() const
+    {
+        return ntohs(((struct sockaddr_in *)&addr_)->sin_port);
     }
 
     int resolve()
@@ -55,6 +70,15 @@ public:
         }
         freeaddrinfo(info);
         return ret;
+    }
+    bool operator <(const address &addr) const
+    {
+        if (len_ < addr.len_) {
+            return true;
+        } else if (len_ > addr.len_) {
+            return false;
+        }
+        return memcmp(&addr_, &addr.addr_,  len_) < 0;
     }
 
     virtual ~address()

@@ -12,6 +12,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-fsanitize=address,leak,undefined -g3")
 set(CMAKE_C_FLAGS_DEBUG "-fsanitize=address,leak,undefined -g3")
 
 include_directories(lib)
+include_directories(3rdparty)
 add_subdirectory(lib)
 
 add_subdirectory(coroutine)

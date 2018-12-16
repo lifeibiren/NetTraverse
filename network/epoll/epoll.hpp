@@ -119,7 +119,7 @@ public:
     void poll_forever()
     {
         for (;;) {
-            while (co_num_ready() > 1) {
+            while (co_num_ready() > 0) {
                 co_resched();
             }
             nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);

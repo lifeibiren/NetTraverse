@@ -5,7 +5,8 @@
 
 enum class bridge_mode {
     client,
-    server
+    server,
+    udp
 };
 
 class config
@@ -20,6 +21,8 @@ public:
             return bridge_mode::client;
         else if (node_["mode"].as<std::string>() == "server")
             return bridge_mode::server;
+        else if  (node_["mode"].as<std::string>() == "bridge")
+            return bridge_mode::udp;
         else
             throw std::runtime_error("invalid mode");
     }
@@ -60,3 +63,14 @@ protected:
 
 int server(config &conf);
 int client(config &conf);
+int udp_bridge_main(config &conf);
+
+
+static inline void xor_mess(void *buf, std::size_t length)
+{
+    std::uint8_t *bytes = (std::uint8_t *)buf;
+    for (std::size_t i = 0; i < length; i++)
+    {
+        bytes[i] ^= 0x0f;
+    }
+}

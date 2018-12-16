@@ -29,9 +29,13 @@ int main(int argc, char *args[])
     {
         server(conf);
     }
-    else
+    else if (conf.mode() == bridge_mode::client)
     {
         client(conf);
+    }
+    else if (conf.mode() == bridge_mode::udp)
+    {
+        udp_bridge_main(conf);
     }
 
     return 0;

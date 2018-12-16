@@ -1,10 +1,9 @@
-#include "bridge.hpp"
+#include "ether_bridge.hpp"
 
 #include "epoll.hpp"
 #include "tuntap.hpp"
 #include "coroutine.h"
 #include "timer.hpp"
-#include "bridge.hpp"
 #include "bytebuffer.hpp"
 #include "AES.hpp"
 
