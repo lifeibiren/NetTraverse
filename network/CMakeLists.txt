@@ -10,5 +10,5 @@ add_subdirectory(protocol)
 
 
 file(GLOB network_src *.cc *.cpp)
-add_library(network $<TARGET_OBJECTS:network_epoll> ${network_src})
+add_library(network $<TARGET_OBJECTS:network_epoll> $<TARGET_OBJECTS:protocol> ${network_src})
 target_include_directories(network INTERFACE epoll .)

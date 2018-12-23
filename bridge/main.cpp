@@ -12,16 +12,20 @@
 
 #include "config.hpp"
 
+extern void protocol_test();
 
 int main(int argc, char *args[])
 {
-    co_init();
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    if (argc != 2) {
+    if (argc == 2) {
         std::cout<<"must specify configuration file"<<std::endl;
+    } else {
+        protocol_test();
     }
+
+    co_init();
 
     config conf(YAML::LoadFile(args[1]));
 
@@ -36,7 +40,8 @@ int main(int argc, char *args[])
     else if (conf.mode() == bridge_mode::udp)
     {
         udp_bridge_main(conf);
-    }
+    } else {
 
+    }
     return 0;
 }

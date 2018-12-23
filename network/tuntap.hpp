@@ -10,6 +10,8 @@
 
 #include <stdexcept>
 
+#include <fcntl.h>
+#include <cstring>
 
 class tuntap
 {
