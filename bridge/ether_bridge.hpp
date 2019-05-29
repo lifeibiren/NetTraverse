@@ -8,6 +8,36 @@
 
 #include "socket.hpp"
 
+#include <yaml-cpp/yaml.h>
+
+struct ether_bridge_conf {
+  enum { SERVER, CLIENT } mode_;
+  std::string key_;
+  std::string tap_device_;
+
+  // client
+  std::string remote_addr_;
+  std::uint16_t remote_port_;
+
+  // server
+  std::string bind_addr_;
+  std::uint16_t bind_port_;
+
+  ether_bridge_conf(const YAML::Node &node) {
+    mode_ = node["mode"].as<std::string>() == "server" ? SERVER : CLIENT;
+    key_ = node["key"].as<std::string>();
+    tap_device_ = node["tap_dev"].as<std::string>();
+
+    if (mode_ == CLIENT) {
+      remote_addr_ = node["remote_addr"].as<std::string>();
+      remote_port_ = node["remote_port"].as<std::uint16_t>();
+    } else {
+      bind_addr_ = node["bind_addr"].as<std::string>();
+      bind_port_ = node["bind_port"].as<std::uint16_t>();
+    }
+  }
+};
+
 struct ethernet_address
 {
     struct ether_addr addr_;

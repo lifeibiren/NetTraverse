@@ -1,14 +1,15 @@
 #pragma once
 #include "epoll/epoll.hpp"
 
-#include "coroutine.h"
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netdb.h>
+#include <errno.h>
 #include <memory.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include "coroutine.h"
 
 #include "bytebuffer.hpp"
 
@@ -38,6 +39,10 @@ public:
         : host_(host), port_(std::to_string(port))
     {
     }
+    address(const struct sockaddr_storage *sockaddr, socklen_t len) {
+      len_ = len;
+      memcpy(&addr_, sockaddr, len);
+    }
 
     std::string ip() const
     {
@@ -48,6 +53,10 @@ public:
     uint16_t port() const
     {
         return ntohs(((struct sockaddr_in *)&addr_)->sin_port);
+    }
+
+    uint32_t ipv4() const {
+      return ((struct sockaddr_in *)&addr_)->sin_addr.s_addr;
     }
 
     int resolve()
@@ -207,8 +216,40 @@ public:
     {
         if (::bind(handle_.fd_, addr.get_sockaddr(), addr.get_sockaddr_len()) < 0)
         {
-            perror("bind");
+          throw std::runtime_error("bind failed");
         }
+    }
+
+    int listen(int num) { return ::listen(handle_.fd_, num); }
+
+    address get_local_address() const {
+      struct sockaddr_storage storage;
+      socklen_t len = sizeof(storage);
+      int ret = getsockname(handle_.fd_, (struct sockaddr *)&storage, &len);
+      if (ret) {
+        throw std::runtime_error("getsockname failed");
+      }
+      return address(&storage, len);
+    }
+
+    tcp_socket accept() {
+      int fd = -1;
+      do {
+        fd = ::accept(handle_.fd_, NULL, NULL);
+        if (fd == -1) {
+          if (errno != EAGAIN) {
+            throw std::runtime_error("accept failed");
+          }
+        } else {
+          break;
+        }
+        waited_ |= CAN_READ;
+        co_yield(&co_read);
+        waited_ &= ~CAN_READ;
+      } while (1);
+      tcp_socket sock(pool_);
+      sock.handle_.fd_ = fd;
+      return sock;
     }
 
     int connect(const address &addr)
@@ -220,14 +261,15 @@ public:
             {
                 if (errno == EINPROGRESS)
                 {
-                    waited_ |= CAN_READ;
-                    co_yield(&co_read);
-                    waited_ &= ~CAN_READ;
+                  waited_ |= CAN_WRITE;
+                  co_yield(&co_write);
+                  waited_ &= ~CAN_WRITE;
 
-                    int so_error;
-                    socklen_t option_len;
-                    if (getsockopt(handle_.fd_, SO_ERROR, SOL_SOCKET, &so_error, &option_len)) {
-                        return -1;
+                  int so_error;
+                  socklen_t option_len;
+                  if (getsockopt(handle_.fd_, SO_ERROR, SOL_SOCKET, &so_error,
+                                 &option_len)) {
+                    return -1;
                     }
                     if (so_error == 0) {
                         return 0;

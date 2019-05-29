@@ -15,6 +15,7 @@ struct client_env {
     address addr;
     AES *aes;
 };
+
 static void read_tap(client_env &env)
 {
     async_file_event *event = env.tap;
@@ -65,39 +66,30 @@ static void read_udp(client_env &env)
     }
 }
 
-static void socksv5_client(client_env &env)
-{
+int client(const ether_bridge_conf &conf) {
+  address server_addr(conf.remote_addr_, conf.remote_port_);
+  server_addr.resolve();
 
-}
+  epoll_event_pool pool;
 
-int client(config &conf)
-{
-    address server_addr(conf.remote_address(), conf.remote_port());
-    server_addr.resolve();
+  tap tap0(conf.tap_device_);
+  fd_handle handle(tap0.fd());
+  async_file_event event(pool, handle);
+  udp_socket sock(pool);
 
-    epoll_event_pool pool;
+  client_env env;
+  env.tap = &event;
+  env.udp = &sock;
+  env.addr = server_addr;
+  env.aes = new AES(AES_key(conf.key_));
 
-    tap tap0(conf.tap_dev());
-    fd_handle handle(tap0.fd());
-    async_file_event event(pool, handle);
-    udp_socket sock(pool);
+  coroutine *co = co_create_cxx_shared(std::bind(read_tap, std::ref(env)));
+  co_post(co);
 
-    client_env env;
-    env.tap = &event;
-    env.udp = &sock;
-    env.addr = server_addr;
-    env.aes = new AES(AES_key(conf.key()));
+  co = co_create_cxx_shared(std::bind(read_udp, std::ref(env)));
+  co_post(co);
 
-    coroutine *co = co_create_cxx_shared(std::bind(read_tap, std::ref(env)));
-    co_post(co);
+  pool.poll_forever();
 
-    co = co_create_cxx_shared(std::bind(read_udp, std::ref(env)));
-    co_post(co);
-
-    co = co_create_cxx_shared(std::bind(socksv5_client, std::ref(env)));
-    co_post(co);
-
-    pool.poll_forever();
-
-    return 0;
+  return 0;
 }

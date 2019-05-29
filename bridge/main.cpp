@@ -27,21 +27,15 @@ int main(int argc, char *args[])
 
     co_init();
 
-    config conf(YAML::LoadFile(args[1]));
+    ether_bridge_conf conf(YAML::LoadFile(args[1]));
 
-    if (conf.mode() == bridge_mode::server)
-    {
-        server(conf);
-    }
-    else if (conf.mode() == bridge_mode::client)
-    {
-        client(conf);
-    }
-    else if (conf.mode() == bridge_mode::udp)
-    {
-        udp_bridge_main(conf);
+    if (conf.mode_ == ether_bridge_conf::SERVER) {
+      server(conf);
+    } else if (conf.mode_ == ether_bridge_conf::CLIENT) {
+      client(conf);
     } else {
-
+      abort();
     }
+
     return 0;
 }
